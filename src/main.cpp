@@ -31,9 +31,8 @@ void setup() {
   SERIAL_TO_PC.begin(SERIAL_TO_PC_BAUD);
   SERIAL_TO_PC.setTxTimeoutMs(0);
 
-  // put your setup code here, to run once:
-  UART_PORT.begin(UART_BAUD, 134217756U, 6, 5); // This for radioboard
-  //UART_PORT.begin(UART_BAUD, 134217756U, 9, 46); // This for cmdIn
+  // ------------- PORT --------- DeviceRX, DeviceTX // 
+  UART_PORT.begin(UART_BAUD, 134217756U, 9, 46); // This for cmdIn
 
   led.begin();
   uint32_t ledColor = colors[random(0,8)];
@@ -50,6 +49,9 @@ void loop() {
     UartCapsule.decode(UART_PORT.read());
   }
   if (sen.update()) {
+    uint32_t ledColor = colors[random(0,8)];
+    led.fill(ledColor);
+    led.show();
     PacketBinocGlobalStatus packet;
     packet.attitude.azm = sen.get().attitude.yaw; 
     packet.attitude.elv = sen.get().attitude.pitch;
