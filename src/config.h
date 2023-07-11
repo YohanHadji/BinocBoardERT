@@ -9,7 +9,7 @@
 #define SENSOR_PORT Serial2
 #define SENSOR_BAUD 115200
 
-#define NEOPIXEL_PIN            18
+#define NEOPIXEL_PIN            15
 
-#define BUTTON_CALIBRATE_PIN    19
-#define BUTTON_IS_IN_VIEW_PIN   20
+#define BUTTON_CALIBRATE_PIN    4
+#define BUTTON_IS_IN_VIEW_PIN   5

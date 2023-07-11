@@ -154,7 +154,8 @@ senClass::senClass()
 
 void senClass::begin() {
     USBSerial.begin(115200);
-    SENSOR_PORT.begin(SENSOR_BAUD, 134217756U, 6, 5);
+    // ------------- PORT --------- DeviceRX, DeviceTX // 
+    SENSOR_PORT.begin(SENSOR_BAUD, 134217756U, 39, 38);
     sen_interface = XSENS_INTERFACE_RX_TX( &receive, &send );
     config();
     //setNoRotation(10);
