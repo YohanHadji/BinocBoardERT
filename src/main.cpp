@@ -12,14 +12,15 @@ static bool sensorIsInView = false;
 static senClass sen;
 
 uint32_t colors[] = {
-    0x32A8A0,
-    0x0000FF,
-    0xFFEA00,
-    0x00FF00,
-    0xFF0000,
-    0xCF067C,
-    0xFF0800
+    0x32A8A0, // Cyan
+    0x0000FF, // Blue
+    0xFFEA00, // Yellow
+    0x00FF00, // Green
+    0xFF0000, // Red
+    0xCF067C, // Purple
+    0xFF0800  // Orange
 }; 
+
 
 void handleUartCapsule(uint8_t packetId, uint8_t *dataIn, uint32_t len);
 
