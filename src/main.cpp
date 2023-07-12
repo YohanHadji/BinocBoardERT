@@ -12,7 +12,6 @@ static bool sensorIsInView = false;
 static senClass sen;
 
 uint32_t colors[] = {
-    0x000000,
     0x32A8A0,
     0x0000FF,
     0xFFEA00,
@@ -35,7 +34,7 @@ void setup() {
   UART_PORT.begin(UART_BAUD, 134217756U, 9, 46); // This for cmdIn
 
   led.begin();
-  uint32_t ledColor = colors[random(0,8)];
+  uint32_t ledColor = colors[random(0,7)];
   led.fill(ledColor);
   led.show();
   sen.begin();
@@ -49,7 +48,7 @@ void loop() {
     UartCapsule.decode(UART_PORT.read());
   }
   if (sen.update()) {
-    uint32_t ledColor = colors[random(0,8)];
+    uint32_t ledColor = colors[random(0,7)];
     led.fill(ledColor);
     led.show();
     PacketBinocGlobalStatus packet;
