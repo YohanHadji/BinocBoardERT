@@ -8,13 +8,10 @@
 #include "sensor.h"
 
 static bool sensorIsCalibrated = false;
-static bool sensorJustCalibrated = false;
 static bool sensorIsInView = false;
 static senClass sen;
 
 void sendBinocGlobalStatus();
-void sendCalibrationBegin();
-void sendCalibrationEnd();
 
 uint32_t colors[] = {
     0x32A8A0, // Cyan
@@ -51,28 +48,25 @@ void setup() {
 }
 
 void loop() {
+
   while (UART_PORT.available()) {
     UartCapsule.decode(UART_PORT.read());
 
   }
+
+
   if (sen.update()) {
     uint32_t ledColor = colors[random(0,7)];
     led.fill(ledColor);
     led.show();
-    if (sensorJustCalibrated) {
-      sendCalibrationEnd();
-          sensorJustCalibrated = false;
-    }
     sendBinocGlobalStatus();
   }
   static long lastCalibrationTime = 0;
-  if (millis()-lastCalibrationTime > 1000) {
+  if (millis()-lastCalibrationTime > 1000 and (!sensorIsInView or !sensorIsCalibrated)) {
     if (digitalRead(BUTTON_CALIBRATE_PIN) == BUTTON_CALIBRATE_PRESSED) {
-      sendCalibrationBegin();
       SERIAL_TO_PC.println("Calibrating");
       lastCalibrationTime = millis();
       sensorIsCalibrated = true;
-      sensorJustCalibrated = true;
       sen.calibrate();
     }
   }
@@ -86,28 +80,6 @@ void loop() {
 }
 
 void handleUartCapsule(uint8_t packetId, uint8_t *dataIn, uint32_t len) {
-}
-
-void sendCalibrationBegin() {
-  PacketBinocCalibStatus packet;
-  packet.status = false;
-  uint8_t* buffer = new uint8_t[packetBinocCalibStatusSize];
-  memcpy(buffer, &packet, packetBinocCalibStatusSize);
-  uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::BINOC_CALIB_STATUS,buffer,packetBinocCalibStatusSize);
-  UART_PORT.write(packetToSend,UartCapsule.getCodedLen(packetBinocCalibStatusSize));
-  delete[] packetToSend;
-  delete[] buffer;
-}
-
-void sendCalibrationEnd() {
-  PacketBinocCalibStatus packet;
-  packet.status = true;
-  uint8_t* buffer = new uint8_t[packetBinocCalibStatusSize];
-  memcpy(buffer, &packet, packetBinocCalibStatusSize);
-  uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::BINOC_CALIB_STATUS,buffer,packetBinocCalibStatusSize);
-  UART_PORT.write(packetToSend,UartCapsule.getCodedLen(packetBinocCalibStatusSize));
-  delete[] packetToSend;
-  delete[] buffer;
 }
 
 void sendBinocGlobalStatus() {
