@@ -51,10 +51,7 @@ void loop() {
 
   while (UART_PORT.available()) {
     UartCapsule.decode(UART_PORT.read());
-
   }
-
-
   if (sen.update()) {
     uint32_t ledColor = colors[random(0,7)];
     led.fill(ledColor);
