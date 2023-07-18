@@ -40,15 +40,9 @@ void receive( XsensEventFlag_t event, XsensEventData_t *mtdata) {
                 sen.attitude.pitch  *= (180.0 / PI);
                 sen.attitude.yaw    *= (180.0 / PI);
 
-                sen.attitude.roll = -sen.attitude.roll;
-                sen.attitude.pitch = -sen.attitude.pitch;
-                sen.attitude.yaw = -sen.attitude.yaw;
-
-                //sen.attitude.yaw = sen.attitude.yaw-90;
-
-                if (sen.attitude.yaw<0) {
-                    sen.attitude.yaw = 360 + sen.attitude.yaw;
-                }
+                sen.attitude.roll = sen.attitude.roll;
+                sen.attitude.pitch = sen.attitude.pitch;
+                sen.attitude.yaw = sen.attitude.yaw;
 
                 sen.updated = true;
 
@@ -59,13 +53,6 @@ void receive( XsensEventFlag_t event, XsensEventData_t *mtdata) {
                 sen.attitude.roll  = mtdata->data.f4x3[0];
                 sen.attitude.pitch = mtdata->data.f4x3[1];
                 sen.attitude.yaw   = -mtdata->data.f4x3[2];
-
-                if (sen.attitude.yaw<0) {
-                    sen.attitude.yaw = 360 + sen.attitude.yaw;
-                }
-
-                sen.attitude.yaw = sen.attitude.yaw+90;
-                sen.attitude.yaw = double(int((sen.attitude.yaw+360)*100.0)%36000)/100.0;
 
                 sen.updated = true;
         break;
@@ -166,22 +153,33 @@ void senClass::setNoRotation(int16_t timeForNoRotation) {
 }
 
 void senClass::calibrate() {
-    xsens_mti_request( &sen_interface, MT_GOTOCONFIG );
+    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_HEADING_RESET);
+    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_INCLINATION_RESET);
     xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_RESET);
+    xsens_mti_request( &sen_interface, MT_GOTOCONFIG );
     xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_STORE);
     xsens_mti_request( &sen_interface, MT_GOTOMEASUREMENT );
 }
 
 void senClass::config() {
 
+    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_HEADING_DEFAULT);
+    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_INCLINATION_DEFAULT);
+    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_DEFAULT);
+
     uint16_t filterProfile = 13;
-    enum XDA_TYPE_IDENTIFIER outputList[]= {XDI_LAT_LON, 
-                                            XDI_GNSS_PVT_DATA, 
-                                            XDI_EULER_ANGLES, 
-                                            XDI_UTC_TIME, 
-                                            XDI_ALTITUDE_ELLIPSOID, 
-                                            XDI_STATUS_WORD
-            };
+    // enum XDA_TYPE_IDENTIFIER outputList[]= {XDI_LAT_LON, 
+    //                                         XDI_GNSS_PVT_DATA, 
+    //                                         XDI_EULER_ANGLES, 
+    //                                         XDI_UTC_TIME, 
+    //                                         XDI_ALTITUDE_ELLIPSOID, 
+    //                                         XDI_STATUS_WORD
+    //         };
+
+    enum XDA_TYPE_IDENTIFIER outputList[]= { XDI_EULER_ANGLES, 
+                                    XDI_UTC_TIME,  
+                                    XDI_STATUS_WORD
+    };
 
     uint16_t dynamicProfile = 8;
     size_t outputListSize = sizeof(outputList)/sizeof(enum XDA_TYPE_IDENTIFIER);
@@ -199,9 +197,6 @@ void senClass::config() {
     //xsens_mti_set_orientation( &sen_interface,  0, 0, 1, 0);
     //if (DEBUG) { printReceived(); }
 
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_HEADING_DEFAULT);
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_INCLINATION_DEFAULT);
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_DEFAULT);
     xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_STORE);
     if (DEBUG) { printReceived(); }
 
@@ -217,7 +212,7 @@ void senClass::config() {
 
     // Setting for the sensor: fill the outputList with desired data, the last parameter is the rate:
     // Available rate, HZA = A Hz rate. 1, 5, 10, 20, 50, 100Hz are available. Defined in xsens_constant.h
-    xsens_mti_set_output( &sen_interface, outputList, outputListSize, HZ20);
+    xsens_mti_set_output( &sen_interface, outputList, outputListSize, HZ100);
     if (DEBUG) { printReceived(); }
 
     // Enables in run compass calibration
@@ -227,7 +222,6 @@ void senClass::config() {
     //xsens_mti_clear_option_flag( &sen_interface, 0x80);
     //xsens_mti_clear_option_flag( &sen_interface, 0x10);
     if (DEBUG) { printReceived(); }
-
     xsens_mti_request( &sen_interface, MT_GOTOMEASUREMENT );
 }
 

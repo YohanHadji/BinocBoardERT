@@ -17,6 +17,7 @@ struct vect3 {
   double c;
 };
 
+
 // GPS Coordinate, Latitude (° decimal), Longitude (° decimal), and Altitude (m)
 struct gpsCoord {
   double lat;

@@ -8,8 +8,13 @@
 #include "sensor.h"
 
 static bool sensorIsCalibrated = false;
+static bool sensorJustCalibrated = false;
 static bool sensorIsInView = false;
 static senClass sen;
+
+void sendBinocGlobalStatus();
+void sendCalibrationBegin();
+void sendCalibrationEnd();
 
 uint32_t colors[] = {
     0x32A8A0, // Cyan
@@ -37,6 +42,7 @@ void setup() {
   led.begin();
   uint32_t ledColor = colors[random(0,7)];
   led.fill(ledColor);
+  led.setBrightness(20);
   led.show();
   sen.begin();
 
@@ -47,38 +53,82 @@ void setup() {
 void loop() {
   while (UART_PORT.available()) {
     UartCapsule.decode(UART_PORT.read());
+
   }
   if (sen.update()) {
     uint32_t ledColor = colors[random(0,7)];
     led.fill(ledColor);
     led.show();
-    PacketBinocGlobalStatus packet;
-    packet.attitude.azm = sen.get().attitude.yaw; 
-    packet.attitude.elv = sen.get().attitude.pitch;
-    packet.position.lat = sen.get().position.lat;
-    packet.position.lon = sen.get().position.lng;
-    packet.position.alt = sen.get().position.alt;
-    packet.status.isCalibrated = sensorIsCalibrated;
-    packet.status.isInView = sensorIsInView;
+    if (sensorJustCalibrated) {
+      sendCalibrationEnd();
+          sensorJustCalibrated = false;
+    }
+    sendBinocGlobalStatus();
+  }
+  static long lastCalibrationTime = 0;
+  if (millis()-lastCalibrationTime > 1000) {
+    if (digitalRead(BUTTON_CALIBRATE_PIN) == BUTTON_CALIBRATE_PRESSED) {
+      sendCalibrationBegin();
+      SERIAL_TO_PC.println("Calibrating");
+      lastCalibrationTime = millis();
+      sensorIsCalibrated = true;
+      sensorJustCalibrated = true;
+      sen.calibrate();
+    }
+  }
 
-    uint8_t* buffer = new uint8_t[packetBinocGlobalStatusSize];
-    memcpy(buffer, &packet, packetBinocGlobalStatusSize);
-    uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::BINOC_GLOBAL_STATUS,buffer,packetBinocGlobalStatusSize);
-    UART_PORT.write(packetToSend,UartCapsule.getCodedLen(packetBinocGlobalStatusSize));
-    delete[] packetToSend;
-    delete[] buffer;
-  }
-  if (digitalRead(BUTTON_CALIBRATE_PIN) == LOW) {
-    sensorIsCalibrated = true;
-    sen.calibrate();
-  }
-  if (digitalRead(BUTTON_IS_IN_VIEW_PIN) == LOW) {
-    sensorIsInView = true;
-  }
-  else {
-    sensorIsInView = false;
-  } 
+  // if (digitalRead(BUTTON_IS_IN_VIEW_PIN) == LOW) {
+  //   sensorIsInView = true;
+  // }
+  // else {
+  //   sensorIsInView = false;
+  // } 
 }
 
 void handleUartCapsule(uint8_t packetId, uint8_t *dataIn, uint32_t len) {
+}
+
+void sendCalibrationBegin() {
+  PacketBinocCalibStatus packet;
+  packet.status = false;
+  uint8_t* buffer = new uint8_t[packetBinocCalibStatusSize];
+  memcpy(buffer, &packet, packetBinocCalibStatusSize);
+  uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::BINOC_CALIB_STATUS,buffer,packetBinocCalibStatusSize);
+  UART_PORT.write(packetToSend,UartCapsule.getCodedLen(packetBinocCalibStatusSize));
+  delete[] packetToSend;
+  delete[] buffer;
+}
+
+void sendCalibrationEnd() {
+  PacketBinocCalibStatus packet;
+  packet.status = true;
+  uint8_t* buffer = new uint8_t[packetBinocCalibStatusSize];
+  memcpy(buffer, &packet, packetBinocCalibStatusSize);
+  uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::BINOC_CALIB_STATUS,buffer,packetBinocCalibStatusSize);
+  UART_PORT.write(packetToSend,UartCapsule.getCodedLen(packetBinocCalibStatusSize));
+  delete[] packetToSend;
+  delete[] buffer;
+}
+
+void sendBinocGlobalStatus() {
+  PacketBinocGlobalStatus packet;
+  packet.attitude.azm = sen.get().attitude.yaw; 
+  packet.attitude.elv = sen.get().attitude.pitch;
+  packet.position.lat = sen.get().position.lat;
+  packet.position.lon = sen.get().position.lng;
+  packet.position.alt = sen.get().position.alt;
+  packet.status.isCalibrated = sensorIsCalibrated;
+  packet.status.isInView = sensorIsInView;
+
+  // SERIAL_TO_PC.print("Azimuth: ");
+  // SERIAL_TO_PC.print(packet.attitude.azm);
+  // SERIAL_TO_PC.print(" Elevation: ");
+  // SERIAL_TO_PC.println(packet.attitude.elv);
+
+  uint8_t* buffer = new uint8_t[packetBinocGlobalStatusSize];
+  memcpy(buffer, &packet, packetBinocGlobalStatusSize);
+  uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::BINOC_GLOBAL_STATUS,buffer,packetBinocGlobalStatusSize);
+  UART_PORT.write(packetToSend,UartCapsule.getCodedLen(packetBinocGlobalStatusSize));
+  delete[] packetToSend;
+  delete[] buffer;
 }

@@ -12,4 +12,6 @@
 #define NEOPIXEL_PIN            15
 
 #define BUTTON_CALIBRATE_PIN    4
+#define BUTTON_CALIBRATE_PRESSED 0
+
 #define BUTTON_IS_IN_VIEW_PIN   5
