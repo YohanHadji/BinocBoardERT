@@ -2,10 +2,17 @@
 #include <Capsule.h>  
 #include <SPI.h>
 #include <Adafruit_NeoPixel.h>
+#include <esp_now.h>
+#include <WiFi.h>
+#include <../ERT_RF_Protocol_Interface/MacAdresses.h>
 #include "../ERT_RF_Protocol_Interface/PacketDefinition.h"
 #include "../ERT_RF_Protocol_Interface/ParameterDefinition.h"
+
 #include "config.h"
 #include "sensor.h"
+
+uint8_t* broadcastAddress = commandInputMac;
+esp_now_peer_info_t peerInfo;
 
 static bool sensorIsCalibrated = false;
 static bool sensorIsInView = false;
@@ -45,6 +52,16 @@ void setup() {
 
   pinMode(BUTTON_CALIBRATE_PIN, INPUT);
   pinMode(BUTTON_IS_IN_VIEW_PIN, INPUT);
+
+  // Set device as a Wi-Fi Station
+  WiFi.mode(WIFI_STA);
+  esp_now_init();
+
+  // Register peer
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false;
+  esp_now_add_peer(&peerInfo);
 }
 
 void loop() {
@@ -98,6 +115,7 @@ void sendBinocGlobalStatus() {
   memcpy(buffer, &packet, packetBinocGlobalStatusSize);
   uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::BINOC_GLOBAL_STATUS,buffer,packetBinocGlobalStatusSize);
   UART_PORT.write(packetToSend,UartCapsule.getCodedLen(packetBinocGlobalStatusSize));
+  esp_now_send(broadcastAddress, packetToSend, UartCapsule.getCodedLen(packetBinocGlobalStatusSize));
   delete[] packetToSend;
   delete[] buffer;
 }
