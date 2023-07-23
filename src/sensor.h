@@ -6,6 +6,8 @@
 #include "Arduino.h"
 #include "config.h"
 
+double getAngle(double angle1, double angle2);
+
 struct timeCode {
   int second;
   int nanosecond;
@@ -16,7 +18,6 @@ struct vect3 {
   double b;
   double c;
 };
-
 
 // GPS Coordinate, Latitude (° decimal), Longitude (° decimal), and Altitude (m)
 struct gpsCoord {
@@ -66,6 +67,7 @@ struct senStatus {
   gpsStatus gps;
   bool valid;
   bool updated;
+  bool runningNoRotation;
 };
 
 double timeDiff(timeCode time1, timeCode time2);
@@ -81,6 +83,7 @@ class senClass {
     bool isValid();
     void begin();
     void calibrate();
+    void setNoRotation(int16_t timeForNoRotation);
     //void receive(XsensEventFlag_t event, XsensEventData_t *mtdata);
     //void send(uint8_t *data, uint16_t length);
     friend void receive(XsensEventFlag_t event, XsensEventData_t *mtdata);
@@ -88,7 +91,6 @@ class senClass {
     double timeDiff(timeCode time1, timeCode time2);
   private:
     void config();
-    void setNoRotation(int16_t timeForNoRotation);
     void printReceived();
     timeStruct time;
     gpsCoord position;
@@ -97,6 +99,7 @@ class senClass {
     xsens_interface_t sen_interface;
     bool updated;
     bool valid;
+    bool runningNoRotation;
 };
 
 

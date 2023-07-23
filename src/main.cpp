@@ -11,6 +11,10 @@
 #include "config.h"
 #include "sensor.h"
 
+#include <Bounce2.h>
+
+Bounce inViewButton = Bounce();
+
 uint8_t* broadcastAddress = commandInputMac;
 esp_now_peer_info_t peerInfo;
 
@@ -44,35 +48,57 @@ void setup() {
   UART_PORT.begin(UART_BAUD, 134217756U, 9, 46); // This for cmdIn
 
   led.begin();
-  uint32_t ledColor = colors[random(0,7)];
-  led.fill(ledColor);
+  led.fill(0xFF0000);
   led.setBrightness(20);
   led.show();
+
   sen.begin();
 
   pinMode(BUTTON_CALIBRATE_PIN, INPUT);
-  pinMode(BUTTON_IS_IN_VIEW_PIN, INPUT);
+  inViewButton.attach(BUTTON_IS_IN_VIEW_PIN, INPUT);
+  inViewButton.interval(10); // interval in ms
 
   // Set device as a Wi-Fi Station
   WiFi.mode(WIFI_STA);
-  esp_now_init();
 
+  WiFi.setSleep(false);
+
+  esp_now_init();
+  
   // Register peer
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
   peerInfo.channel = 0;  
   peerInfo.encrypt = false;
   esp_now_add_peer(&peerInfo);
+
+  delay(5000);
+
+  sen.setNoRotation(20);
 }
 
 void loop() {
-
   while (UART_PORT.available()) {
     UartCapsule.decode(UART_PORT.read());
   }
   if (sen.update()) {
-    uint32_t ledColor = colors[random(0,7)];
-    led.fill(ledColor);
-    led.show();
+    if (sen.get().runningNoRotation) {
+      led.fill(0x0000FF);
+      led.show();
+      
+    }
+    else {
+      static bool ledOn = false;
+      if (ledOn) {
+        led.fill(0x000000);
+        led.show();
+        ledOn = false;
+      }
+      else {
+        led.fill(0x00FF00);
+        ledOn = true;
+        led.show();
+      }
+    }
     sendBinocGlobalStatus();
   }
   static long lastCalibrationTime = 0;
@@ -85,12 +111,18 @@ void loop() {
     }
   }
 
-  // if (digitalRead(BUTTON_IS_IN_VIEW_PIN) == LOW) {
-  //   sensorIsInView = true;
-  // }
-  // else {
-  //   sensorIsInView = false;
-  // } 
+  inViewButton.update();
+
+  if (inViewButton.changed()) {
+    if (inViewButton.read() == BUTTON_IS_IN_VIEW_PRESSED) {
+      sensorIsInView = true;
+      //SERIAL_TO_PC.println("In view");
+    }
+    else {
+      sensorIsInView = false;
+      //SERIAL_TO_PC.println("Not in view");
+    } 
+  }
 }
 
 void handleUartCapsule(uint8_t packetId, uint8_t *dataIn, uint32_t len) {
@@ -105,7 +137,6 @@ void sendBinocGlobalStatus() {
   packet.position.alt = sen.get().position.alt;
   packet.status.isCalibrated = sensorIsCalibrated;
   packet.status.isInView = sensorIsInView;
-
   // SERIAL_TO_PC.print("Azimuth: ");
   // SERIAL_TO_PC.print(packet.attitude.azm);
   // SERIAL_TO_PC.print(" Elevation: ");
@@ -115,6 +146,7 @@ void sendBinocGlobalStatus() {
   memcpy(buffer, &packet, packetBinocGlobalStatusSize);
   uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::BINOC_GLOBAL_STATUS,buffer,packetBinocGlobalStatusSize);
   UART_PORT.write(packetToSend,UartCapsule.getCodedLen(packetBinocGlobalStatusSize));
+
   esp_now_send(broadcastAddress, packetToSend, UartCapsule.getCodedLen(packetBinocGlobalStatusSize));
   delete[] packetToSend;
   delete[] buffer;
