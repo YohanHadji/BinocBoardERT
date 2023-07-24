@@ -24,6 +24,9 @@ static senClass sen;
 
 void sendBinocGlobalStatus();
 
+double offset = 0;
+double adjustedYaw = 0;
+
 uint32_t colors[] = {
     0x32A8A0, // Cyan
     0x0000FF, // Blue
@@ -52,8 +55,6 @@ void setup() {
   led.setBrightness(20);
   led.show();
 
-  sen.begin();
-
   pinMode(BUTTON_CALIBRATE_PIN, INPUT);
   inViewButton.attach(BUTTON_IS_IN_VIEW_PIN, INPUT);
   inViewButton.interval(10); // interval in ms
@@ -71,9 +72,16 @@ void setup() {
   peerInfo.encrypt = false;
   esp_now_add_peer(&peerInfo);
 
-  delay(5000);
+  senSettings basicSettings;
+  basicSettings.heatingTime = 10;
+  basicSettings.noRotationTime = 20;
+  basicSettings.fusionFilter = 11;
+  basicSettings.ahs = true;
+  basicSettings.inRunCompassCalibration = true;
 
-  sen.setNoRotation(20);
+  basicSettings = {5,	60,	13,	1,	1}; 
+
+  sen.begin(basicSettings);
 }
 
 void loop() {
@@ -84,7 +92,6 @@ void loop() {
     if (sen.get().runningNoRotation) {
       led.fill(0x0000FF);
       led.show();
-      
     }
     else {
       static bool ledOn = false;
@@ -107,7 +114,8 @@ void loop() {
       SERIAL_TO_PC.println("Calibrating");
       lastCalibrationTime = millis();
       sensorIsCalibrated = true;
-      sen.calibrate();
+      //sen.calibrate();
+      offset = sen.get().attitude.yaw;
     }
   }
 
@@ -130,17 +138,29 @@ void handleUartCapsule(uint8_t packetId, uint8_t *dataIn, uint32_t len) {
 
 void sendBinocGlobalStatus() {
   PacketBinocGlobalStatus packet;
-  packet.attitude.azm = sen.get().attitude.yaw; 
+
+  packet.attitude.azm = sen.get().attitude.yaw-offset; 
+
+  if (packet.attitude.azm>180) {
+    packet.attitude.azm -= 360;
+  }
+  else if (packet.attitude.azm<-180) {
+    packet.attitude.azm += 360;
+  }
+
   packet.attitude.elv = sen.get().attitude.pitch;
   packet.position.lat = sen.get().position.lat;
   packet.position.lon = sen.get().position.lng;
   packet.position.alt = sen.get().position.alt;
   packet.status.isCalibrated = sensorIsCalibrated;
   packet.status.isInView = sensorIsInView;
-  // SERIAL_TO_PC.print("Azimuth: ");
-  // SERIAL_TO_PC.print(packet.attitude.azm);
-  // SERIAL_TO_PC.print(" Elevation: ");
-  // SERIAL_TO_PC.println(packet.attitude.elv);
+
+  SERIAL_TO_PC.print("Azimuth: ");
+  SERIAL_TO_PC.print(packet.attitude.azm);
+  SERIAL_TO_PC.print(" Elevation: ");
+  SERIAL_TO_PC.print(packet.attitude.elv);
+  SERIAL_TO_PC.print(" sensorIsCalibrated: ");
+  SERIAL_TO_PC.println(packet.status.isCalibrated);
 
   uint8_t* buffer = new uint8_t[packetBinocGlobalStatusSize];
   memcpy(buffer, &packet, packetBinocGlobalStatusSize);

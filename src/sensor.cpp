@@ -172,11 +172,18 @@ senClass::senClass()
     gps.isValid = false;
 }
 
-void senClass::begin() {
+void senClass::begin(senSettings settings) {
     // ------------- PORT --------- DeviceRX, DeviceTX // 
     SENSOR_PORT.begin(SENSOR_BAUD, 134217756U, 39, 38);
     sen_interface = XSENS_INTERFACE_RX_TX( &receive, &send );
-    config();
+    config(settings);
+
+    delay(settings.heatingTime*1000);
+    if (settings.noRotationTime > 0) {
+        setNoRotation(settings.noRotationTime);
+        delay(100);
+    }
+    SENSOR_PORT.flush();
 }
 
 void senClass::setNoRotation(int16_t timeForNoRotation) {
@@ -192,13 +199,13 @@ void senClass::calibrate() {
     xsens_mti_request( &sen_interface, MT_GOTOMEASUREMENT );
 }
 
-void senClass::config() {
+void senClass::config(senSettings settings) {
 
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_HEADING_DEFAULT);
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_INCLINATION_DEFAULT);
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_DEFAULT);
+    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_HEADING_DEFAULT);
+    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_INCLINATION_DEFAULT);
+    //sens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_DEFAULT);
 
-    uint16_t filterProfile = 11;
+    uint16_t filterProfile = settings.fusionFilter;
     // enum XDA_TYPE_IDENTIFIER outputList[]= {XDI_LAT_LON, 
     //                                         XDI_GNSS_PVT_DATA, 
     //                                         XDI_EULER_ANGLES, 
@@ -229,8 +236,8 @@ void senClass::config() {
     //if (DEBUG) { printReceived(); }
 
 
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_STORE);
-    if (DEBUG) { printReceived(); }
+    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_STORE);
+    //if (DEBUG) { printReceived(); }
 
     //USBSerial.print("Requesting the current platform... ");
     //xsens_mti_request( &sen_interface,  MT_REQGNSSPLATFORM );
@@ -247,17 +254,28 @@ void senClass::config() {
     xsens_mti_set_output( &sen_interface, outputList, outputListSize, HZ100);
     if (DEBUG) { printReceived(); }
 
-    // Enables in run compass calibration
-    //xsens_mti_set_option_flag( &sen_interface, 0x10);
-    //if (DEBUG) { printReceived(); }
+    if (settings.ahs) {
+        // Enables AHS
+        xsens_mti_set_option_flag( &sen_interface, 0x10);
+        if (DEBUG) { printReceived(); }
+    }
+    else {
+        // Disables AHS
+        xsens_mti_clear_option_flag( &sen_interface, 0x80);
+        if (DEBUG) { printReceived(); }
+    }
 
-    //xsens_mti_set_option_flag( &sen_interface, 0x80);
-    //if (DEBUG) { printReceived(); }
+    if (settings.inRunCompassCalibration) {
+        // Enables In-Run Compass Calibration
+        xsens_mti_set_option_flag( &sen_interface, 0x80);
+        if (DEBUG) { printReceived(); }
+    }
+    else {
+        // Disables In-Run Compass Calibration
+        xsens_mti_clear_option_flag( &sen_interface, 0x80);
+        if (DEBUG) { printReceived(); }
+    }
 
-    xsens_mti_clear_option_flag( &sen_interface, 0x80);
-    if (DEBUG) { printReceived(); }
-    xsens_mti_clear_option_flag( &sen_interface, 0x10);
-    if (DEBUG) { printReceived(); }
 
     xsens_mti_request( &sen_interface, MT_GOTOMEASUREMENT );
     if (DEBUG) { printReceived(); }

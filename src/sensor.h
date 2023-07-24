@@ -8,6 +8,14 @@
 
 double getAngle(double angle1, double angle2);
 
+struct senSettings {
+  int heatingTime; // sec
+  int noRotationTime; // sec
+  int fusionFilter; // 11 or 13
+  bool ahs; // true or false
+  bool inRunCompassCalibration; // true or false
+};
+
 struct timeCode {
   int second;
   int nanosecond;
@@ -81,7 +89,7 @@ class senClass {
     bool update();
     senStatus get();
     bool isValid();
-    void begin();
+    void begin(senSettings settings);
     void calibrate();
     void setNoRotation(int16_t timeForNoRotation);
     //void receive(XsensEventFlag_t event, XsensEventData_t *mtdata);
@@ -90,7 +98,7 @@ class senClass {
     friend void send(uint8_t *data, uint16_t length);
     double timeDiff(timeCode time1, timeCode time2);
   private:
-    void config();
+    void config(senSettings settings);
     void printReceived();
     timeStruct time;
     gpsCoord position;
