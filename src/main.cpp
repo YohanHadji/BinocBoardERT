@@ -7,6 +7,7 @@
 #include <../ERT_RF_Protocol_Interface/MacAdresses.h>
 #include "../ERT_RF_Protocol_Interface/PacketDefinition.h"
 #include "../ERT_RF_Protocol_Interface/ParameterDefinition.h"
+#include <movingAvg.h>
 
 #include "config.h"
 #include "sensor.h"
@@ -14,6 +15,8 @@
 #include <Bounce2.h>
 
 Bounce inViewButton = Bounce();
+// movingAvg yawAvg(1);
+// movingAvg pitchAvg(1);
 
 uint8_t* broadcastAddress = commandInputMac;
 esp_now_peer_info_t peerInfo;
@@ -24,8 +27,11 @@ static senClass sen;
 
 void sendBinocGlobalStatus();
 
-double offset = 0;
-double adjustedYaw = 0;
+double yawOffset = 0;
+double pitchOffset = 0;
+
+//double adjustedYaw = 0;
+//double adjustedPitch = 0;
 
 uint32_t colors[] = {
     0x32A8A0, // Cyan
@@ -79,9 +85,12 @@ void setup() {
   basicSettings.ahs = true;
   basicSettings.inRunCompassCalibration = true;
 
-  basicSettings = {5,	60,	13,	1,	1}; 
+  basicSettings = {15,30,	13,	1, 1}; 
 
   sen.begin(basicSettings);
+
+  // yawAvg.begin();
+  // pitchAvg.begin();
 }
 
 void loop() {
@@ -114,11 +123,20 @@ void loop() {
       SERIAL_TO_PC.println("Calibrating");
       lastCalibrationTime = millis();
       sensorIsCalibrated = true;
+      // yawAvg.reset();
+      // pitchAvg.reset();
       //sen.calibrate();
-      offset = sen.get().attitude.yaw;
+      // yawOffset = sen.get().attitude.yaw;
+      // pitchOffset = sen.get().attitude.pitch;
+
+      // Sending a calibrate telemetry packet
+      uint8_t* buffer = new uint8_t[1];
+      uint8_t* packetToSend = UartCapsule.encode(CAPSULE_ID::CALIBRATE_TELEMETRY,buffer,1);
+      UART_PORT.write(packetToSend,UartCapsule.getCodedLen(1));
+      delete[] packetToSend;
     }
   }
-
+  
   inViewButton.update();
 
   if (inViewButton.changed()) {
@@ -139,7 +157,15 @@ void handleUartCapsule(uint8_t packetId, uint8_t *dataIn, uint32_t len) {
 void sendBinocGlobalStatus() {
   PacketBinocGlobalStatus packet;
 
-  packet.attitude.azm = sen.get().attitude.yaw-offset; 
+  packet.attitude.azm = sen.get().attitude.yaw;//yawAvg.reading(int(sen.get().attitude.yaw*10000.0))/10000.0;
+  packet.attitude.elv = sen.get().attitude.pitch;//pitchAvg.reading(int(sen.get().attitude.pitch*10000.0))/10000.0;
+
+  // SERIAL_TO_PC.print(packet.attitude.azm);
+  // SERIAL_TO_PC.print(" ");
+  // SERIAL_TO_PC.println(sen.get().attitude.yaw);
+
+  packet.attitude.azm = packet.attitude.azm-yawOffset; 
+  packet.attitude.elv = packet.attitude.elv-pitchOffset;
 
   if (packet.attitude.azm>180) {
     packet.attitude.azm -= 360;
@@ -148,7 +174,14 @@ void sendBinocGlobalStatus() {
     packet.attitude.azm += 360;
   }
 
-  packet.attitude.elv = sen.get().attitude.pitch;
+  // if (packet.attitude.elv>180) {
+  //   packet.attitude.elv -= 360;
+  // }
+  // else if (packet.attitude.elv<-180) {
+  //   packet.attitude.elv += 360;
+  // }
+
+  //packet.attitude.elv = sen.get().attitude.pitch;
   packet.position.lat = sen.get().position.lat;
   packet.position.lon = sen.get().position.lng;
   packet.position.alt = sen.get().position.alt;

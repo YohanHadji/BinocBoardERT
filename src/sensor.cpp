@@ -48,14 +48,15 @@ void receive( XsensEventFlag_t event, XsensEventData_t *mtdata) {
                 sen.attitude.yaw = attitude_mem[2];
 
                 // Convert from radians to degrees
-                sen.attitude.roll   *= (180.0 / PI);
-                sen.attitude.pitch  *= (180.0 / PI);
-                sen.attitude.yaw    *= (180.0 / PI);
+                sen.attitude.roll  = sen.attitude.roll*(180.0 / PI);
+                sen.attitude.pitch = sen.attitude.pitch*(180.0 / PI);
+                sen.attitude.yaw   = sen.attitude.yaw*(180.0 / PI);
 
-                sen.attitude.roll = sen.attitude.roll;
-                sen.attitude.pitch = sen.attitude.pitch;
-                sen.attitude.yaw = sen.attitude.yaw;
+                //sen.attitude.roll = sen.attitude.roll;
+                //sen.attitude.pitch = sen.attitude.pitch;
+                //sen.attitude.yaw = sen.attitude.yaw;
 
+                //sen.updated = true;
             }
         break;
 
@@ -67,11 +68,25 @@ void receive( XsensEventFlag_t event, XsensEventData_t *mtdata) {
                 // SERIAL_TO_PC.print("Euler: ");
                 // SERIAL_TO_PC.print(sen.attitude.roll);
                 // SERIAL_TO_PC.print(" ");
-                // SERIAL_TO_PC.print(sen.attitude.pitch);
+                // SERIAL_TO_PC.print(sen.attitude.pitch,5);
                 // SERIAL_TO_PC.print(" ");
-                // SERIAL_TO_PC.println(sen.attitude.yaw);
+                // SERIAL_TO_PC.println(sen.attitude.yaw,5);
 
                 sen.updated = true;
+        break;
+
+        case XSENS_EVT_ACCELERATION:
+        {
+            // double accX = mtdata->data.f4x3[0];
+            // double accY = mtdata->data.f4x3[1];
+            // double accZ = mtdata->data.f4x3[2];
+
+            // SERIAL_TO_PC.print(accX);
+            // SERIAL_TO_PC.print(" ");
+            // SERIAL_TO_PC.print(accY);
+            // SERIAL_TO_PC.print(" ");
+            // SERIAL_TO_PC.println(accZ);
+        }
         break;
 
         case XSENS_EVT_LAT_LON:
@@ -193,17 +208,17 @@ void senClass::setNoRotation(int16_t timeForNoRotation) {
 void senClass::calibrate() {
     //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_HEADING_RESET);
     //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_INCLINATION_RESET);
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_RESET);
-    xsens_mti_request( &sen_interface, MT_GOTOCONFIG );
-    xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_STORE);
-    xsens_mti_request( &sen_interface, MT_GOTOMEASUREMENT );
+    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_RESET);
+    //xsens_mti_request( &sen_interface, MT_GOTOCONFIG );
+    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_STORE);
+    //xsens_mti_request( &sen_interface, MT_GOTOMEASUREMENT );
 }
 
 void senClass::config(senSettings settings) {
 
-    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_HEADING_DEFAULT);
-    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_INCLINATION_DEFAULT);
-    //sens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_DEFAULT);
+    // xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_HEADING_DEFAULT);
+    // xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_INCLINATION_DEFAULT);
+    // xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_ALIGNMENT_DEFAULT);
 
     uint16_t filterProfile = settings.fusionFilter;
     // enum XDA_TYPE_IDENTIFIER outputList[]= {XDI_LAT_LON, 
@@ -214,7 +229,7 @@ void senClass::config(senSettings settings) {
     //                                         XDI_STATUS_WORD
     //         };
 
-    enum XDA_TYPE_IDENTIFIER outputList[]= { XDI_EULER_ANGLES, 
+    enum XDA_TYPE_IDENTIFIER outputList[]= { XDI_EULER_ANGLES, XDI_ACCELERATION,
                                     XDI_UTC_TIME,  
                                     XDI_STATUS_WORD
     };
@@ -225,8 +240,8 @@ void senClass::config(senSettings settings) {
     xsens_mti_request( &sen_interface, MT_GOTOCONFIG );
     if (DEBUG) { printReceived(); }
 
-    //xsens_mti_reset_factory( &sen_interface );
-    //if (DEBUG) { printReceived(); }
+    xsens_mti_reset_factory( &sen_interface );
+    if (DEBUG) { printReceived(); }
 
     xsens_mti_set_filter_profile( &sen_interface, filterProfile );
     if (DEBUG) { printReceived(); }
@@ -235,9 +250,8 @@ void senClass::config(senSettings settings) {
     //xsens_mti_set_orientation( &sen_interface,  0, 0, 1, 0);
     //if (DEBUG) { printReceived(); }
 
-
-    //xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_STORE);
-    //if (DEBUG) { printReceived(); }
+    // xsens_mti_reset_orientation( &sen_interface, XSENS_ORIENTATION_STORE);
+    // if (DEBUG) { printReceived(); }
 
     //USBSerial.print("Requesting the current platform... ");
     //xsens_mti_request( &sen_interface,  MT_REQGNSSPLATFORM );
@@ -251,7 +265,7 @@ void senClass::config(senSettings settings) {
 
     // Setting for the sensor: fill the outputList with desired data, the last parameter is the rate:
     // Available rate, HZA = A Hz rate. 1, 5, 10, 20, 50, 100Hz are available. Defined in xsens_constant.h
-    xsens_mti_set_output( &sen_interface, outputList, outputListSize, HZ100);
+    xsens_mti_set_output( &sen_interface, outputList, outputListSize, HZ20);
     if (DEBUG) { printReceived(); }
 
     if (settings.ahs) {
